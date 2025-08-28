@@ -25,20 +25,20 @@ namespace svh {
     };
 
     inline void tag_invoke(svh::imgui_input_lib_t, int& value, const std::string& name, imgui_context& ctx, imgui_result& result) {
-        auto& settings = ctx.get<int>();
-        bool changed = false;
-        switch (ctx.get_default_type()) {
-        case imgui_input_type::input:
-            changed = ImGui::InputInt(name.c_str(), &value, settings.get_step(), settings.get_step_fast());
-            break;
-        case imgui_input_type::slider:
-            changed = ImGui::SliderInt(name.c_str(), &value, settings.get_min(), settings.get_max());
-            break;
-        case imgui_input_type::drag:
-            changed = ImGui::DragInt(name.c_str(), &value, (float)settings.get_step(), settings.get_min(), settings.get_max());
-            break;
-        }
-        result.set_changed(changed);
+        //auto& settings = ctx.get<int>();
+        //bool changed = false;
+        //switch (ctx.get_default_type()) {
+        //case imgui_input_type::input:
+        //    changed = ImGui::InputInt(name.c_str(), &value, settings.get_step(), settings.get_step_fast());
+        //    break;
+        //case imgui_input_type::slider:
+        //    changed = ImGui::SliderInt(name.c_str(), &value, settings.get_min(), settings.get_max());
+        //    break;
+        //case imgui_input_type::drag:
+        //    changed = ImGui::DragInt(name.c_str(), &value, (float)settings.get_step(), settings.get_min(), settings.get_max());
+        //    break;
+        //}
+        //result.set_changed(changed);
     }
 
     /* ======================== float ======================== */
@@ -61,20 +61,20 @@ namespace svh {
     };
 
     inline void tag_invoke(svh::imgui_input_lib_t, float& value, const std::string name, imgui_context& ctx, imgui_result result) {
-        auto& settings = ctx.get<float>();
-        bool changed = false;
-        switch (ctx.get_default_type()) {
-        case imgui_input_type::input:
-            changed = ImGui::InputFloat(name.c_str(), &value, settings.get_step(), settings.get_step_fast(), ("%" + std::to_string(ctx.get_decimal_precision()) + "f").c_str());
-            break;
-        case imgui_input_type::slider:
-            changed = ImGui::SliderFloat(name.c_str(), &value, settings.get_min(), settings.get_max(), ("%" + std::to_string(ctx.get_decimal_precision()) + "f").c_str());
-            break;
-        case imgui_input_type::drag:
-            changed = ImGui::DragFloat(name.c_str(), &value, settings.get_step(), settings.get_min(), settings.get_max(), ("%" + std::to_string(ctx.get_decimal_precision()) + "f").c_str());
-            break;
-        }
-        result.set_changed(changed);
+        //auto& settings = ctx.get<float>();
+        //bool changed = false;
+        //switch (ctx.get_default_type()) {
+        //case imgui_input_type::input:
+        //    changed = ImGui::InputFloat(name.c_str(), &value, settings.get_step(), settings.get_step_fast(), ("%" + std::to_string(ctx.get_decimal_precision()) + "f").c_str());
+        //    break;
+        //case imgui_input_type::slider:
+        //    changed = ImGui::SliderFloat(name.c_str(), &value, settings.get_min(), settings.get_max(), ("%" + std::to_string(ctx.get_decimal_precision()) + "f").c_str());
+        //    break;
+        //case imgui_input_type::drag:
+        //    changed = ImGui::DragFloat(name.c_str(), &value, settings.get_step(), settings.get_min(), settings.get_max(), ("%" + std::to_string(ctx.get_decimal_precision()) + "f").c_str());
+        //    break;
+        //}
+        //result.set_changed(changed);
     }
 
     /* ======================== bool ======================== */
@@ -99,33 +99,33 @@ namespace svh {
     };
 
     inline void tag_invoke(svh::imgui_input_lib_t, bool& value, const std::string name, imgui_context& ctx, imgui_result result) {
-        auto& settings = ctx.get<bool>();
-        bool changed = false;
-        switch (settings.get_type()) {
-        case type_settings<bool>::bool_type::checkbox:
-            changed = ImGui::Checkbox(name.c_str(), &value);
-            break;
-        case type_settings<bool>::bool_type::button:
-            if (ImGui::Button(value ? settings.get_true_label().c_str() : settings.get_false_label().c_str())) {
-                value = !value;
-                changed = true;
-            }
-            break;
-        case type_settings<bool>::bool_type::dropdown:
-            if (ImGui::BeginCombo(name.c_str(), value ? settings.get_true_label().c_str() : settings.get_false_label().c_str())) {
-                if (ImGui::Selectable(settings.get_true_label().c_str(), value)) {
-                    value = true;
-                    changed = true;
-                }
-                if (ImGui::Selectable(settings.get_false_label().c_str(), !value)) {
-                    value = false;
-                    changed = true;
-                }
-                ImGui::EndCombo();
-            }
-            break;
-        }
-        result.set_changed(changed);
+        //auto& settings = ctx.get<bool>();
+        //bool changed = false;
+        //switch (settings.get_type()) {
+        //case type_settings<bool>::bool_type::checkbox:
+        //    changed = ImGui::Checkbox(name.c_str(), &value);
+        //    break;
+        //case type_settings<bool>::bool_type::button:
+        //    if (ImGui::Button(value ? settings.get_true_label().c_str() : settings.get_false_label().c_str())) {
+        //        value = !value;
+        //        changed = true;
+        //    }
+        //    break;
+        //case type_settings<bool>::bool_type::dropdown:
+        //    if (ImGui::BeginCombo(name.c_str(), value ? settings.get_true_label().c_str() : settings.get_false_label().c_str())) {
+        //        if (ImGui::Selectable(settings.get_true_label().c_str(), value)) {
+        //            value = true;
+        //            changed = true;
+        //        }
+        //        if (ImGui::Selectable(settings.get_false_label().c_str(), !value)) {
+        //            value = false;
+        //            changed = true;
+        //        }
+        //        ImGui::EndCombo();
+        //    }
+        //    break;
+        //}
+        //result.set_changed(changed);
     }
 
     /* ======================== std::string ======================== */

@@ -46,6 +46,14 @@ namespace svh {
             }
             return it->second;
         }
+
+        template<typename U>
+        std::shared_ptr<scope<U>> find_child() const {
+            auto key = std::type_index(typeid(U));
+            auto it = children.find(key);
+            if (it == children.end()) return nullptr;
+            return std::static_pointer_cast<scope<U>>(it->second);
+        }
     };
 
     // 3) Settings base that provides .pop(), as you wanted
@@ -83,6 +91,7 @@ namespace svh {
             std::shared_ptr<scope<U>> n;
 
             type_settings<U>& settings() { return n->settings; }
+            const type_settings<U>& settings() const { return n->settings; }
 
             // ctor wires the reference to the node's settings
             explicit typed_scope_handle(std::shared_ptr<scope<U>> node)
@@ -95,6 +104,22 @@ namespace svh {
                 return typed_scope_handle<V>{ std::static_pointer_cast<scope<V>>(child) };
             }
             scope_handle pop() { return scope_handle{ n->scope_base::parent_ptr() }; }
+
+            // NEW: non-creating lookup to a child of the current typed node
+            template<typename V>
+            typed_scope_handle<V> use() const {
+                auto child = n->scope_base::find_child<V>();
+                if (!child) throw std::runtime_error("use<V>: child not found");
+                return typed_scope_handle<V>{ child };
+            }
+
+            // Optional: treat *this* node as another T (rarely needed)
+            template<typename V>
+            typed_scope_handle<V> as() const {
+                auto cur = std::dynamic_pointer_cast<scope<V>>(n);
+                if (!cur) throw std::runtime_error("as<V>: current node is not requested type");
+                return typed_scope_handle<V>{ cur };
+            }
         };
 
         template<typename U>
@@ -104,6 +129,22 @@ namespace svh {
         }
 
         scope_handle pop() { return scope_handle{ n->parent_ptr() }; }
+
+        // Navigate to an existing child U. Throws if missing.
+        template<typename U>
+        typed_scope_handle<U> use() const {
+            auto child = n->find_child<U>();
+            if (!child) throw std::runtime_error("use<U>: child not found");
+            return typed_scope_handle<U>{ child };
+        }
+
+        // Treat current node as U. Throws if wrong type.
+        template<typename U>
+        typed_scope_handle<U> as() const {
+            auto cur = std::dynamic_pointer_cast<scope<U>>(n);
+            if (!cur) throw std::runtime_error("as<U>: current node is not requested type");
+            return typed_scope_handle<U>{ cur };
+        }
     };
 
     // 6) Now wire settings_with_pop<T>::pop() to return scope_handle
@@ -132,67 +173,29 @@ namespace svh {
     };
 
     struct default_imgui_settings {
-        int decimal_precision = 3;
-        imgui_input_type default_type = imgui_input_type::input;
+        int _decimal_precision = 3;
+        imgui_input_type _default_type = imgui_input_type::input;
+
+        default_imgui_settings& decimal_precision(const int val) { _decimal_precision = val; return *this; }
+        default_imgui_settings& default_type(const imgui_input_type val) { _default_type = val; return *this; }
     };
 
     struct imgui_context {
-    private:
-        default_imgui_settings settings;
-        std::unordered_map<std::type_index, std::any> by_type;
+        //scope_handle root{ std::make_shared<scope<default_imgui_settings>>() }; // root node with default settings
+        //scope_handle current{ root }; // current node, starts at root
 
-    public: /* default setting API */
-        imgui_context& decimal_precision(const int val) { settings.decimal_precision = val; return *this; }
-        imgui_context& default_type(const imgui_input_type val) { settings.default_type = val; return *this; }
+        //scope_handle& settings() { return root; }
 
-        int get_decimal_precision() const { return settings.decimal_precision; }
-        imgui_input_type get_default_type() const { return settings.default_type; }
+        //template<typename T>
+        //imgui_context& use() { current = current.push<T>(); return *this; }
 
-    public: /* per-type setting API */
-        // mutable get(): ensure + return
-        template<typename T>
-        type_settings<key_t<T>>& get() {
-            using U = key_t<T>;
-            static_assert(std::is_default_constructible_v<type_settings<U>>, "type_settings<U> must be default-constructible");
-            auto key = std::type_index(typeid(U));
-            auto it = by_type.find(key);
-            if (it == by_type.end()) {
-                it = by_type.emplace(key, type_settings<U>{}).first;
-            }
-            return std::any_cast<type_settings<U>&>(it->second);
-        }
-
-        // const get(): no insertion; return const default instance if absent
-        template<typename T>
-        const type_settings<key_t<T>>& get() const {
-            using U = key_t<T>;
-            static_assert(std::is_default_constructible_v<type_settings<U>>, "type_settings<U> must be default-constructible");
-            auto key = std::type_index(typeid(U));
-            auto it = by_type.find(key);
-            if (it == by_type.end()) {
-                static const type_settings<U> default_instance{};
-                return default_instance;
-            }
-            return std::any_cast<const type_settings<U>&>(it->second);
-        }
-
-        template<typename T>
-        type_settings<T>& add() {
-            return get<T>();
-        }
-
-        template<typename T>
-        bool has() const {
-            using U = key_t<T>;
-            return by_type.find(std::type_index(typeid(U))) != by_type.end();
-        }
-
-        template<typename T>
-        imgui_context& remove() {
-            using U = key_t<T>;
-            by_type.erase(std::type_index(typeid(U)));
-            return *this;
-        }
+        //template<typename T>
+        //type_settings<T>& get() {
+        //    auto typed = current.push<T>();
+        //    auto& s = typed.settings();
+        //    current = typed.pop(); // go back
+        //    return s;
+        //}
     };
 
     class imgui_input {
@@ -223,6 +226,8 @@ namespace svh {
 
     template<typename T>
     void imgui_input_impl(T& value, const std::string& name, imgui_context& ctx, imgui_result& result) {
+        //TODO: let the context know we are entering a new scope
+
         if constexpr (is_tag_invocable_v<imgui_input_t, T&, std::string&, imgui_context&, imgui_result&>) {
             // 1) user
             tag_invoke(input, value, name, ctx, result);
