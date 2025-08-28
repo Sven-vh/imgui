@@ -51,7 +51,12 @@ namespace svh {
         std::shared_ptr<scope<U>> find_child() const {
             auto key = std::type_index(typeid(U));
             auto it = children.find(key);
-            if (it == children.end()) return nullptr;
+            if (it == children.end()) {
+                if (parent.expired() == false) {
+                    return parent.lock()->find_child<U>();
+                }
+                return nullptr;
+            }
             return std::static_pointer_cast<scope<U>>(it->second);
         }
     };

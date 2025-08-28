@@ -276,17 +276,17 @@ void TestWindow() {
         .max(10.0f)
         .pop()
         .push<MyStruct>()
-            .push<float>()
-                .push<bool>() // settings for bool inside float inside MyStruct
-                    .settings()
-                    .type(type_settings<bool>::bool_type::dropdown)
-                .pop()
-            .pop()
-            .push<float>()  // settings for float inside MyStruct
-                .settings()
-                .min(0.0f)
-                .max(5.0f)
-            .pop()
+            //.push<float>()
+            //    .push<bool>() // settings for bool inside float inside MyStruct
+            //        .settings()
+            //        .type(type_settings<bool>::bool_type::dropdown)
+            //    .pop()
+            //.pop()
+            //.push<float>()  // settings for float inside MyStruct
+            //    .settings()
+            //    .min(0.0f)
+            //    .max(5.0f)
+            //.pop()
         .pop();
 
     { // default float settings
