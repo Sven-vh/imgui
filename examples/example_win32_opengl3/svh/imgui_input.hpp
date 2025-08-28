@@ -20,11 +20,9 @@ namespace svh {
 
 namespace svh {
 
-    // 1) Forward decl
     template<typename T> struct scope;
     struct scope_handle;
 
-    // 2) Base node (unchanged idea)
     struct scope_base : std::enable_shared_from_this<scope_base> {
         std::weak_ptr<scope_base> parent;
         std::unordered_map<std::type_index, std::shared_ptr<scope_base>> children;
@@ -36,32 +34,49 @@ namespace svh {
         }
 
         template<typename U>
-        std::shared_ptr<scope_base> ensure_child() {
+        std::shared_ptr<scope_base> ensure_child(const bool check_ancestors) {
             auto key = std::type_index(typeid(U));
             auto it = children.find(key);
-            if (it == children.end()) {
-                auto child = std::make_shared<scope<U>>();
-                child->parent = this->shared_from_this();
-                it = children.emplace(key, child).first;
+            if (it != children.end()) return it->second;
+
+            auto child = std::make_shared<scope<U>>();
+
+            if (check_ancestors) {
+                if (auto seed = find_in_ancestors<U>()) {
+                    child->copy_settings_from(*seed);
+                }
             }
+
+            child->parent = this->shared_from_this();
+            it = children.emplace(key, child).first;
             return it->second;
         }
 
         template<typename U>
-        std::shared_ptr<scope<U>> find_child() const {
+        std::shared_ptr<scope<U>> find_local_child() const {
             auto key = std::type_index(typeid(U));
             auto it = children.find(key);
-            if (it == children.end()) {
-                if (parent.expired() == false) {
-                    return parent.lock()->find_child<U>();
-                }
-                return nullptr;
-            }
+            if (it == children.end()) return nullptr;
             return std::static_pointer_cast<scope<U>>(it->second);
+        }
+
+        template<typename U>
+        std::shared_ptr<scope<U>> find_in_ancestors() const {
+            auto p = parent.lock();
+            while (p) {
+                if (auto found = p->find_local_child<U>()) return found;
+                p = p->parent.lock();
+            }
+            return nullptr;
+        }
+
+        template<typename U>
+        std::shared_ptr<scope<U>> find_nearest() const {
+            if (auto here = find_local_child<U>()) return here;
+            return find_in_ancestors<U>();
         }
     };
 
-    // 3) Settings base that provides .pop(), as you wanted
     template<typename T>
     struct settings_with_pop {
     private:
@@ -69,25 +84,27 @@ namespace svh {
         friend struct scope<T>;
         void __attach(scope<T>* o) { __owner = o; }
     public:
-        // pop() returns an untyped handle at the parent
         scope_handle pop();
     };
 }
 
-/* Per-type settings (only what that types need) */
 template <class T>
 struct type_settings : svh::settings_with_pop<T> {};
 
 namespace svh {
 
-    // 4) Node with attached settings (your specializations inherit settings_with_pop<T>)
     template<typename T>
     struct scope : scope_base {
         type_settings<T> settings;
+
         scope() { settings.__attach(this); }
+
+        void copy_settings_from(const scope<T>& other) {
+            settings = other.settings;
+            settings.__attach(this);
+        }
     };
 
-    // 5) Untyped handle
     struct scope_handle {
         std::shared_ptr<scope_base> n;
 
@@ -95,45 +112,55 @@ namespace svh {
         struct typed_scope_handle {
             std::shared_ptr<scope<U>> n;
 
-            operator scope_handle() const { return scope_handle{ n }; }          // implicit
-            operator scope_handle&() { return *reinterpret_cast<scope_handle*>(this); } // implicit
-            scope_handle as_handle()  const { return scope_handle{ n }; }        // explicit alternative
+            operator scope_handle() const { return scope_handle{ n }; }
+            operator scope_handle& () { return *reinterpret_cast<scope_handle*>(this); }
+            scope_handle as_handle()  const { return scope_handle{ n }; }
 
             type_settings<U>& settings() { return n->settings; }
             const type_settings<U>& settings() const { return n->settings; }
 
-            // ctor wires the reference to the node's settings
             explicit typed_scope_handle(std::shared_ptr<scope<U>> node)
                 : n(std::move(node)) {
             }
 
             template<typename V>
             typed_scope_handle<V> push() {
-                auto child = n->scope_base::ensure_child<V>();
+                auto child = n->scope_base::ensure_child<V>(true);
                 return typed_scope_handle<V>{ std::static_pointer_cast<scope<V>>(child) };
             }
+
+            template<typename V>
+            typed_scope_handle<V> push_default() {
+                auto child = n->scope_base::ensure_child<V>(false);
+                return typed_scope_handle<V>{ std::static_pointer_cast<scope<V>>(child) };
+            }
+
             scope_handle pop() { return scope_handle{ n->scope_base::parent_ptr() }; }
 
-            // NEW: non-creating lookup to a child of the current typed node
             template<typename V>
             typed_scope_handle<V> use() const {
-                auto child = n->scope_base::find_child<V>();
+                auto child = n->scope_base::find_local_child<V>();
                 if (!child) throw std::runtime_error("use<V>: child not found");
                 return typed_scope_handle<V>{ child };
             }
 
-            // Optional: treat *this* node as another T (rarely needed)
             template<typename V>
-            typed_scope_handle<V> as() const {
-                auto cur = std::dynamic_pointer_cast<scope<V>>(n);
-                if (!cur) throw std::runtime_error("as<V>: current node is not requested type");
-                return typed_scope_handle<V>{ cur };
+            typed_scope_handle<V> nearest() const {
+                auto found = n->scope_base::find_nearest<V>();
+                if (!found) throw std::runtime_error("nearest<V>: not found in current or ancestors");
+                return typed_scope_handle<V>{ found };
             }
         };
 
         template<typename U>
         typed_scope_handle<U> push() {
-            auto child = n->ensure_child<U>();
+            auto child = n->ensure_child<U>(true);
+            return typed_scope_handle<U>{ std::static_pointer_cast<scope<U>>(child) };
+        }
+
+        template<typename U>
+        typed_scope_handle<U> push_default() {
+            auto child = n->ensure_child<U>(false);
             return typed_scope_handle<U>{ std::static_pointer_cast<scope<U>>(child) };
         }
 
@@ -141,12 +168,11 @@ namespace svh {
 
         template<typename U>
         typed_scope_handle<U> use() const {
-            auto child = n->find_child<U>();
-            if (!child) throw std::runtime_error("use<U>: child not found");
-            return typed_scope_handle<U>{ child };
+            auto found = n->find_nearest<U>();
+            if (!found) throw std::runtime_error("nearest<U>: not found in current or ancestors");
+            return typed_scope_handle<U>{ found };
         }
 
-        // Treat current node as U. Throws if wrong type.
         template<typename U>
         typed_scope_handle<U> as() const {
             auto cur = std::dynamic_pointer_cast<scope<U>>(n);
@@ -155,7 +181,6 @@ namespace svh {
         }
     };
 
-    // 6) Now wire settings_with_pop<T>::pop() to return scope_handle
     template<typename T>
     inline scope_handle settings_with_pop<T>::pop() {
         if (!__owner) throw std::runtime_error("Settings not attached to a scope node");
@@ -163,7 +188,6 @@ namespace svh {
     }
 
     inline scope_handle make_root() {
-        // Root can be void, tag type, or a sentinel; we just need a node.
         struct root_tag {};
         auto root = std::make_shared<scope<root_tag>>();
         return scope_handle{ root };
@@ -189,7 +213,7 @@ namespace svh {
         type_settings& default_type(const imgui_input_type val) { _default_type = val; return *this; }
     };
 
-    struct imgui_context {};
+    using imgui_context = svh::scope_handle;
 
     class imgui_input {
     public:

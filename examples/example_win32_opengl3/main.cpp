@@ -249,18 +249,18 @@ void TestWindow() {
     svh::scope_handle ctx = svh::make_root();
     ctx.push<float>() // default settings for float
         .settings()
-        .step(0.1f)
-        .min(-10.0f)
-        .max(10.0f)
-    .pop()
-    .push<MyStruct>()
-        .push<float>()  // settings for float inside MyStruct
-            .settings()
-            // uses 0.1f as steps from the overlying scope
-            .min(0.0f)
-            .max(5.0f)
+            .step(1)
+            .min(0)
+            .max(100)
         .pop()
-    .pop();
+        .push<MyStruct>()
+            .push<float>()
+                .settings()
+                .step(0.1f)
+                .min(-5.0f)
+                .max(5.0f)
+            .pop()
+        .pop();
 
     // uses default float settings
     do_float_something(ctx);
@@ -269,30 +269,11 @@ void TestWindow() {
     auto my_struct_settings = ctx.use<MyStruct>();
     do_float_something(my_struct_settings);
 
-    //{ // default float settings
-    //    auto float_settings = ctx.use<float>().settings();
-    //    float step = float_settings.get_step(); // 0.1f
-    //    float min = float_settings.get_min();   // -10.0f
-    //    float max = float_settings.get_max();   // 10.0f
-    //}
-    //{ // MyStruct float settings
-    //    auto my_struct_settings = ctx.use<MyStruct>();
-    //    {
-    //        auto float_settings = my_struct_settings.use<float>().settings();
-    //        float step = float_settings.get_step(); // 0.1f
-    //        float min = float_settings.get_min();   // 0.0f
-    //        float max = float_settings.get_max();   // 5.0f
-    //    }
-    //    auto my_struct_float_settings = my_struct_settings.use<float>();
-    //    {
-    //        auto bool_settings = my_struct_float_settings.use<bool>().settings();
-    //        auto type = bool_settings._type; // checkbox
-    //    }
-    //}
 
+    static MyStruct s{ 10, 0.5f, true };
 
-    //auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
-    //if (result.has_changed()) {
-    //    ImGui::Text("Changed!");
-    //}
+    auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
+    if (result.has_changed()) {
+        ImGui::Text("Changed!");
+    }
 }
