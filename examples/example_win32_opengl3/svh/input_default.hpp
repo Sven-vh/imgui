@@ -1,12 +1,13 @@
 #pragma once
 #include "imgui.h"
 #include "imgui_input.hpp"
+#include "svh.hpp"
 
 namespace svh {
 
     /* ======================== int ======================== */
     template<>
-    struct type_settings<int> {
+    struct type_settings<int> : svh::settings_with_pop<int> {
         int _min = 0;
         int _max = 100;
         int _step = 1;
@@ -42,7 +43,7 @@ namespace svh {
 
     /* ======================== float ======================== */
     template<>
-    struct type_settings<float> {
+    struct type_settings<float> : svh::settings_with_pop<float> {
         float _min = 0.0f;
         float _max = 1.0f;
         float _step = 0.01f;
@@ -78,7 +79,7 @@ namespace svh {
 
     /* ======================== bool ======================== */
     template<>
-    struct type_settings<bool> {
+    struct type_settings<bool> : svh::settings_with_pop<bool> {
         enum class bool_type {
             checkbox,
             button,

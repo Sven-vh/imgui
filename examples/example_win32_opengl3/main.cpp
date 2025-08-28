@@ -242,11 +242,11 @@ void TestWindow() {
 
     static MyStruct s{ 1, 2.0f, true };
 
-    auto ctx = svh::imgui_context()
-        .decimal_precision(3)
-        .default_type(svh::imgui_input_type::slider);
-    ctx.get<bool>()
-        .type(type_settings<bool>::bool_type::dropdown);
+    //auto ctx = svh::imgui_context()
+    //    .decimal_precision(3)
+    //    .default_type(svh::imgui_input_type::slider);
+    //ctx.get<bool>()
+    //    .type(type_settings<bool>::bool_type::dropdown);
 
     //auto ctx = svh::imgui_context()
     //    .decimal_precision(3)
@@ -266,8 +266,24 @@ void TestWindow() {
     //        .pop()
     //    .pop();
 
-    auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
-    if (result.has_changed()) {
-        ImGui::Text("Changed!");
-    }
+    //auto root = svh::make_root();
+
+    auto root = svh::make_root()
+        .push<MyStruct>()
+            .push<float>()
+                .settings()
+                .min(0)
+                .max(10)
+            .pop()
+            .push<bool>()
+                .settings()
+                .type(type_settings<bool>::bool_type::dropdown)
+            .pop()
+        .pop();
+
+    root;
+    //auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
+    //if (result.has_changed()) {
+        //ImGui::Text("Changed!");
+    //}
 }
