@@ -237,82 +237,62 @@ struct MyStruct {
 
 SVH_IMGUI_INPUT(MyStruct, a, b, c);
 
+void do_float_something(svh::scope_handle& ctx) {
+    auto float_settings = ctx.use<float>().settings();
+    float step = float_settings.get_step();
+    float min = float_settings.get_min();
+    float max = float_settings.get_max();
+}
+
+
 void TestWindow() {
-    ImGui::Text("Hello");
-
-    static MyStruct s{ 1, 2.0f, true };
-
-    //auto ctx = svh::imgui_context()
-    //    .decimal_precision(3)
-    //    .default_type(svh::imgui_input_type::slider);
-    //ctx.get<bool>()
-    //    .type(type_settings<bool>::bool_type::dropdown);
-
-    //auto ctx = svh::imgui_context()
-    //    .decimal_precision(3)
-    //    .default_type(svh::imgui_input_type::drag)
-    //    .push<bool>()
-    //        .type(type_settings<bool>::bool_type::dropdown)
-    //    .pop()
-    //    .push<float>()
-    //        .step(0.1f)
-    //        .min(-10.0f)
-    //        .max(10.0f)
-    //    .pop()
-    //    .push<MyStruct>()
-    //        .push<float>()
-    //            .min(0)
-    //            .max(10)
-    //        .pop()
-    //    .pop();
-
-    //auto root = svh::make_root();
-
-    auto root = svh::make_root()
-        .push<float>() // default settings for float
+    svh::scope_handle ctx = svh::make_root();
+    ctx.push<float>() // default settings for float
         .settings()
         .step(0.1f)
         .min(-10.0f)
         .max(10.0f)
+    .pop()
+    .push<MyStruct>()
+        .push<float>()  // settings for float inside MyStruct
+            .settings()
+            // uses 0.1f as steps from the overlying scope
+            .min(0.0f)
+            .max(5.0f)
         .pop()
-        .push<MyStruct>()
-            //.push<float>()
-            //    .push<bool>() // settings for bool inside float inside MyStruct
-            //        .settings()
-            //        .type(type_settings<bool>::bool_type::dropdown)
-            //    .pop()
-            //.pop()
-            //.push<float>()  // settings for float inside MyStruct
-            //    .settings()
-            //    .min(0.0f)
-            //    .max(5.0f)
-            //.pop()
-        .pop();
+    .pop();
 
-    { // default float settings
-        auto float_settings = root.use<float>().settings();
-        float step = float_settings.get_step(); // 0.1f
-        float min = float_settings.get_min();   // -10.0f
-        float max = float_settings.get_max();   // 10.0f
-    }
-    { // MyStruct float settings
-        auto my_struct_settings = root.use<MyStruct>();
-        {
-            auto float_settings = my_struct_settings.use<float>().settings();
-            float step = float_settings.get_step(); // 0.1f
-            float min = float_settings.get_min();   // 0.0f
-            float max = float_settings.get_max();   // 5.0f
-        }
-        auto my_struct_float_settings = my_struct_settings.use<float>();
-        {
-            auto bool_settings = my_struct_float_settings.use<bool>().settings();
-            auto type = bool_settings._type; // checkbox
-        }
-    }
+    // uses default float settings
+    do_float_something(ctx);
+
+    // uses MyStruct float settings
+    auto my_struct_settings = ctx.use<MyStruct>();
+    do_float_something(my_struct_settings);
+
+    //{ // default float settings
+    //    auto float_settings = ctx.use<float>().settings();
+    //    float step = float_settings.get_step(); // 0.1f
+    //    float min = float_settings.get_min();   // -10.0f
+    //    float max = float_settings.get_max();   // 10.0f
+    //}
+    //{ // MyStruct float settings
+    //    auto my_struct_settings = ctx.use<MyStruct>();
+    //    {
+    //        auto float_settings = my_struct_settings.use<float>().settings();
+    //        float step = float_settings.get_step(); // 0.1f
+    //        float min = float_settings.get_min();   // 0.0f
+    //        float max = float_settings.get_max();   // 5.0f
+    //    }
+    //    auto my_struct_float_settings = my_struct_settings.use<float>();
+    //    {
+    //        auto bool_settings = my_struct_float_settings.use<bool>().settings();
+    //        auto type = bool_settings._type; // checkbox
+    //    }
+    //}
 
 
     //auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
     //if (result.has_changed()) {
-        //ImGui::Text("Changed!");
+    //    ImGui::Text("Changed!");
     //}
 }

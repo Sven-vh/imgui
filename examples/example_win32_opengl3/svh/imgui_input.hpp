@@ -95,6 +95,10 @@ namespace svh {
         struct typed_scope_handle {
             std::shared_ptr<scope<U>> n;
 
+            operator scope_handle() const { return scope_handle{ n }; }          // implicit
+            operator scope_handle&() { return *reinterpret_cast<scope_handle*>(this); } // implicit
+            scope_handle as_handle()  const { return scope_handle{ n }; }        // explicit alternative
+
             type_settings<U>& settings() { return n->settings; }
             const type_settings<U>& settings() const { return n->settings; }
 
@@ -135,7 +139,6 @@ namespace svh {
 
         scope_handle pop() { return scope_handle{ n->parent_ptr() }; }
 
-        // Navigate to an existing child U. Throws if missing.
         template<typename U>
         typed_scope_handle<U> use() const {
             auto child = n->find_child<U>();
@@ -159,8 +162,8 @@ namespace svh {
         return scope_handle{ __owner->scope_base::parent_ptr() };
     }
 
-    // A small helper to create a root node
     inline scope_handle make_root() {
+        // Root can be void, tag type, or a sentinel; we just need a node.
         struct root_tag {};
         auto root = std::make_shared<scope<root_tag>>();
         return scope_handle{ root };
@@ -177,31 +180,16 @@ namespace svh {
         bool has_changed() const { return changed; }
     };
 
-    struct default_imgui_settings {
+    template <>
+    struct type_settings<struct default_imgui_settings> : svh::settings_with_pop<default_imgui_settings> {
         int _decimal_precision = 3;
         imgui_input_type _default_type = imgui_input_type::input;
 
-        default_imgui_settings& decimal_precision(const int val) { _decimal_precision = val; return *this; }
-        default_imgui_settings& default_type(const imgui_input_type val) { _default_type = val; return *this; }
+        type_settings& decimal_precision(const int val) { _decimal_precision = val; return *this; }
+        type_settings& default_type(const imgui_input_type val) { _default_type = val; return *this; }
     };
 
-    struct imgui_context {
-        //scope_handle root{ std::make_shared<scope<default_imgui_settings>>() }; // root node with default settings
-        //scope_handle current{ root }; // current node, starts at root
-
-        //scope_handle& settings() { return root; }
-
-        //template<typename T>
-        //imgui_context& use() { current = current.push<T>(); return *this; }
-
-        //template<typename T>
-        //type_settings<T>& get() {
-        //    auto typed = current.push<T>();
-        //    auto& s = typed.settings();
-        //    current = typed.pop(); // go back
-        //    return s;
-        //}
-    };
+    struct imgui_context {};
 
     class imgui_input {
     public:
@@ -254,6 +242,7 @@ namespace svh {
     template<typename T>
     inline imgui_result imgui_input::submit(T& value, const std::string& name, imgui_context& ctx) {
         imgui_result result;
+        //auto new_ctx = ctx.use<default_imgui_settings>();
         imgui_input_impl<T>(value, name, ctx, result);
         return result;
     }
