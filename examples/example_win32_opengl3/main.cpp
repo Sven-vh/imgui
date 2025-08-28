@@ -14,9 +14,12 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#define NOMINMAX
 #include <windows.h>
 #include <GL/gl.h>
 #include <tchar.h>
+
+#include "svh/svh.hpp"
 
 // Data stored per platform window
 struct WGL_WindowData { HDC hDC; };
@@ -33,9 +36,11 @@ void CleanupDeviceWGL(HWND hWnd, WGL_WindowData* data);
 void ResetDeviceWGL();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+
+void TestWindow();
+
 // Main code
-int main(int, char**)
-{
+int main(int, char**) {
     // Create application window
     //ImGui_ImplWin32_EnableDpiAwareness();
     WNDCLASSEXW wc = { sizeof(wc), CS_OWNDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
@@ -43,8 +48,7 @@ int main(int, char**)
     HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui Win32+OpenGL3 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
 
     // Initialize OpenGL
-    if (!CreateDeviceWGL(hwnd, &g_MainWindow))
-    {
+    if (!CreateDeviceWGL(hwnd, &g_MainWindow)) {
         CleanupDeviceWGL(hwnd, &g_MainWindow);
         ::DestroyWindow(hwnd);
         ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
@@ -88,19 +92,17 @@ int main(int, char**)
     //IM_ASSERT(font != nullptr);
 
     // Our state
-    bool show_demo_window = true;
+    bool show_demo_window = false;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
     bool done = false;
-    while (!done)
-    {
+    while (!done) {
         // Poll and handle messages (inputs, window resize, etc.)
         // See the WndProc() function below for our to dispatch events to the Win32 backend.
         MSG msg;
-        while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
-        {
+        while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE)) {
             ::TranslateMessage(&msg);
             ::DispatchMessage(&msg);
             if (msg.message == WM_QUIT)
@@ -108,8 +110,7 @@ int main(int, char**)
         }
         if (done)
             break;
-        if (::IsIconic(hwnd))
-        {
+        if (::IsIconic(hwnd)) {
             ::Sleep(10);
             continue;
         }
@@ -130,25 +131,14 @@ int main(int, char**)
 
             ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            TestWindow();
+
             ImGui::End();
         }
 
         // 3. Show another simple window.
-        if (show_another_window)
-        {
+        if (show_another_window) {
             ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
             ImGui::Text("Hello from another window!");
             if (ImGui::Button("Close Me"))
@@ -180,8 +170,7 @@ int main(int, char**)
 }
 
 // Helper functions
-bool CreateDeviceWGL(HWND hWnd, WGL_WindowData* data)
-{
+bool CreateDeviceWGL(HWND hWnd, WGL_WindowData* data) {
     HDC hDc = ::GetDC(hWnd);
     PIXELFORMATDESCRIPTOR pfd = { 0 };
     pfd.nSize = sizeof(pfd);
@@ -203,8 +192,7 @@ bool CreateDeviceWGL(HWND hWnd, WGL_WindowData* data)
     return true;
 }
 
-void CleanupDeviceWGL(HWND hWnd, WGL_WindowData* data)
-{
+void CleanupDeviceWGL(HWND hWnd, WGL_WindowData* data) {
     wglMakeCurrent(nullptr, nullptr);
     ::ReleaseDC(hWnd, data->hDC);
 }
@@ -217,16 +205,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
+LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
-    switch (msg)
-    {
+    switch (msg) {
     case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED)
-        {
+        if (wParam != SIZE_MINIMIZED) {
             g_Width = LOWORD(lParam);
             g_Height = HIWORD(lParam);
         }
@@ -240,4 +225,49 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+
+struct MyStruct {
+    int a;
+    float b;
+    bool c;
+    //std::string d;
+};
+
+SVH_IMGUI_INPUT(MyStruct, a, b, c);
+
+void TestWindow() {
+    ImGui::Text("Hello");
+
+    static MyStruct s{ 1, 2.0f, true };
+
+    auto ctx = svh::imgui_context()
+        .decimal_precision(3)
+        .default_type(svh::imgui_input_type::slider);
+    ctx.get<bool>()
+        .type(type_settings<bool>::bool_type::dropdown);
+
+    //auto ctx = svh::imgui_context()
+    //    .decimal_precision(3)
+    //    .default_type(svh::imgui_input_type::drag)
+    //    .push<bool>()
+    //        .type(type_settings<bool>::bool_type::dropdown)
+    //    .pop()
+    //    .push<float>()
+    //        .step(0.1f)
+    //        .min(-10.0f)
+    //        .max(10.0f)
+    //    .pop()
+    //    .push<MyStruct>()
+    //        .push<float>()
+    //            .min(0)
+    //            .max(10)
+    //        .pop()
+    //    .pop();
+
+    auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
+    if (result.has_changed()) {
+        ImGui::Text("Changed!");
+    }
 }
