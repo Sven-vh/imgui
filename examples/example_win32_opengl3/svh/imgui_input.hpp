@@ -9,15 +9,6 @@
 #include <memory>
 #include <stdexcept>
 
-/* Imgui Translations */
-namespace svh {
-    enum class imgui_input_type {
-        input,
-        slider,
-        drag
-    };
-}
-
 namespace svh {
 
     template<typename T> struct scope;
@@ -88,10 +79,10 @@ namespace svh {
     };
 }
 
-template <class T>
-struct type_settings : svh::settings_with_pop<T> {};
 
 namespace svh {
+    template <class T>
+    struct type_settings : svh::settings_with_pop<T> {};
 
     template<typename T>
     struct scope : scope_base {
@@ -174,6 +165,15 @@ namespace svh {
         }
 
         template<typename U>
+        typed_scope_handle<U> use() {
+            auto found = n->find_nearest<U>();
+            if (!found) {
+                return push_default<U>();
+            }
+            return typed_scope_handle<U>{ found };
+        }
+
+        template<typename U>
         typed_scope_handle<U> as() const {
             auto cur = std::dynamic_pointer_cast<scope<U>>(n);
             if (!cur) throw std::runtime_error("as<U>: current node is not requested type");
@@ -185,12 +185,6 @@ namespace svh {
     inline scope_handle settings_with_pop<T>::pop() {
         if (!__owner) throw std::runtime_error("Settings not attached to a scope node");
         return scope_handle{ __owner->scope_base::parent_ptr() };
-    }
-
-    inline scope_handle make_root() {
-        struct root_tag {};
-        auto root = std::make_shared<scope<root_tag>>();
-        return scope_handle{ root };
     }
 }
 
@@ -204,16 +198,18 @@ namespace svh {
         bool has_changed() const { return changed; }
     };
 
-    template <>
-    struct type_settings<struct default_imgui_settings> : svh::settings_with_pop<default_imgui_settings> {
-        int _decimal_precision = 3;
-        imgui_input_type _default_type = imgui_input_type::input;
+    struct default_imgui_settings {};
 
-        type_settings& decimal_precision(const int val) { _decimal_precision = val; return *this; }
-        type_settings& default_type(const imgui_input_type val) { _default_type = val; return *this; }
+    template <>
+    struct type_settings<default_imgui_settings> : svh::settings_with_pop<default_imgui_settings> {
     };
 
     using imgui_context = svh::scope_handle;
+
+    inline scope_handle make_ctx() {
+        auto root = std::make_shared<scope<default_imgui_settings>>();
+        return scope_handle{ root };
+    }
 
     class imgui_input {
     public:
@@ -222,6 +218,15 @@ namespace svh {
 
         template<typename T>
         static imgui_result submit(T& value, const std::string& name, imgui_context& ctx);
+
+        // visit struct only
+        template<typename T>
+        static auto submit(T& value, imgui_context& ctx)
+            -> std::enable_if_t<is_visitable_v<T, input_type_context>, imgui_result> {
+            auto name = visit_struct::context<input_type_context>::get_name<T>();
+            name = name ? name : "UNKNOWN";
+            return submit(value, name, ctx);
+        }
     };
 }
 
@@ -235,7 +240,8 @@ namespace svh {
 
     // Standalone function to replace the lambda in visit_struct::context<input_type_context>::for_each
     template<typename T>
-    void imgui_input_visit_field(T& value, const std::string&, imgui_context& ctx, imgui_result& result) {
+    void imgui_input_visit_field(T& value, const std::string& name, imgui_context& ctx, imgui_result& result) {
+        ImGui::Text("%s", name.c_str());
         visit_struct::context<input_type_context>::for_each(value, [&](const char* name, auto& field) {
             imgui_input_impl(field, name, ctx, result); // recurse
             });
@@ -244,16 +250,16 @@ namespace svh {
     template<typename T>
     void imgui_input_impl(T& value, const std::string& name, imgui_context& ctx, imgui_result& result) {
         //TODO: let the context know we are entering a new scope
-
+        auto new_ctx = ctx.use<T>();
         if constexpr (is_tag_invocable_v<imgui_input_t, T&, std::string&, imgui_context&, imgui_result&>) {
             // 1) user
-            tag_invoke(input, value, name, ctx, result);
+            tag_invoke(input, value, name, new_ctx, result);
         } else if constexpr (is_tag_invocable_v<imgui_input_lib_t, T&, std::string&, imgui_context&, imgui_result&>) {
             // 2) library defaults
-            tag_invoke(input_lib, value, name, ctx, result);
+            tag_invoke(input_lib, value, name, new_ctx, result);
         } else if constexpr (is_visitable_v<T, input_type_context>) {
             // 3) reflect
-            imgui_input_visit_field(value, name, ctx, result);
+            imgui_input_visit_field(value, name, new_ctx, result);
         } else {
             // 4) error
             static_assert(always_false<T>::value, "No tag_invoke function found for this type/args.");
@@ -266,7 +272,6 @@ namespace svh {
     template<typename T>
     inline imgui_result imgui_input::submit(T& value, const std::string& name, imgui_context& ctx) {
         imgui_result result;
-        //auto new_ctx = ctx.use<default_imgui_settings>();
         imgui_input_impl<T>(value, name, ctx, result);
         return result;
     }

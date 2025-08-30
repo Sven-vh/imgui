@@ -237,43 +237,38 @@ struct MyStruct {
 
 SVH_IMGUI_INPUT(MyStruct, a, b, c);
 
-void do_float_something(svh::scope_handle& ctx) {
-    auto float_settings = ctx.use<float>().settings();
-    float step = float_settings.get_step();
-    float min = float_settings.get_min();
-    float max = float_settings.get_max();
-}
-
-
 void TestWindow() {
-    svh::scope_handle ctx = svh::make_root();
-    ctx.push<float>() // default settings for float
-        .settings()
-            .step(1)
-            .min(0)
-            .max(100)
-        .pop()
-        .push<MyStruct>()
+
+    svh::scope_handle ctx = svh::make_ctx();
+    ctx.push<MyStruct>() // overrides for MyStruct
+            .push<int>()
+                .settings()
+                .step(1)
+                .min(0)
+                .max(100)
+                .as_slider()
+            .pop()
             .push<float>()
                 .settings()
                 .step(0.1f)
                 .min(-5.0f)
                 .max(5.0f)
             .pop()
+            .push<bool>()
+                .settings()
+                .as_radio()
+            .pop()
         .pop();
 
-    // uses default float settings
-    do_float_something(ctx);
+    static float f = 0.0f;
+    svh::imgui_input::submit(f, "default float", ctx);
 
-    // uses MyStruct float settings
-    auto my_struct_settings = ctx.use<MyStruct>();
-    do_float_something(my_struct_settings);
+    static int i = 0;
+    svh::imgui_input::submit(i, "default int", ctx);
 
+    static bool b = false;
+    svh::imgui_input::submit(b, "default bool", ctx);
 
     static MyStruct s{ 10, 0.5f, true };
-
-    auto result = svh::imgui_input::submit(s, "MyStruct", ctx);
-    if (result.has_changed()) {
-        ImGui::Text("Changed!");
-    }
+    svh::imgui_input::submit(s, ctx);
 }
