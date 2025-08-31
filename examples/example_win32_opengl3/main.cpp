@@ -92,7 +92,7 @@ int main(int, char**) {
     //IM_ASSERT(font != nullptr);
 
     // Our state
-    bool show_demo_window = false;
+    bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -240,25 +240,39 @@ SVH_IMGUI_INPUT(MyStruct, a, b, c);
 void TestWindow() {
 
     svh::scope_handle ctx = svh::make_ctx();
-    ctx.push<MyStruct>() // overrides for MyStruct
-            .push<int>()
-                .settings()
-                .step(1)
-                .min(0)
-                .max(100)
-                .as_slider()
-            .pop()
-            .push<float>()
-                .settings()
-                .step(0.1f)
-                .min(-5.0f)
-                .max(5.0f)
-            .pop()
-            .push<bool>()
-                .settings()
-                .as_radio()
-            .pop()
+    ctx.push<int>()
+        .settings()
+        .prefix("i: ")
+        .as_hex()
+        .as_slider()
+        .min(0)
+        .max(255)
+        .pop()
+        .push<MyStruct>() // overrides for MyStruct
+        .push<int>()
+        .settings()
+        .step(1)
+        .min(0)
+        .max(100)
+        .as_slider()
+        .pop()
+        .push<float>()
+        .settings()
+        .step(0.1f)
+        .min(-5.0f)
+        .max(5.0f)
+        .pop()
+        .push<bool>()
+        .settings()
+        .as_radio()
+        .pop()
+        .pop()
+        .push<float>()
+        .settings()
+        .prefix("f: ")
+        .suffix(" units")
         .pop();
+
 
     static float f = 0.0f;
     svh::imgui_input::submit(f, "default float", ctx);
